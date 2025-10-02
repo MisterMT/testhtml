@@ -1,225 +1,183 @@
 <!DOCTYPE html>
 <html lang="de">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>YouTube Slide Drag</title>
-    <style>
-        html,
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
+<meta charset="UTF-8">
+<title>YouTube Swipe mit Startbutton</title>
+<style>
+    html, body {
+        margin:0;
+        padding:0;
+        height:100%;
+        overflow:hidden;
+        background:black;
+    }
 
-        #container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
+    #videocontainer {
+        width:100%;
+        height:100%;
+        display:none;
+        position:relative;
+    }
 
-        iframe {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border: none;
-            transition: transform 0.3s ease;
-            will-change: transform;
-        }
+    .playerDiv {
+        position:absolute;
+        width:100%;
+        height:100%;
+        top:0;
+        left:0;
+        transition: transform 0.3s ease;
+        will-change: transform;
+        z-index:1;
+    }
+    
+    #overlay {
+        position:absolute;
+        top:0;
+        left:0;
+        width:100%;
+        height:100%;
+        z-index:10;
+        cursor:grab;
+        touch-action:none;
+    }
 
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 10;
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            cursor: grab;
-            touch-action: none;
-        }
-    </style>
+    #startButton {
+        position:absolute;
+        top:50%; left:50%;
+        transform:translate(-50%,-50%);
+        padding:15px 25px;
+        border:none;
+        border-radius:12px;
+        font-size:20px;
+        background:#ff0000;
+        color:white;
+        cursor:pointer;
+        z-index:20;
+}
+</style>
 </head>
-
 <body>
 
-    <div id="container">
-        <iframe id="iframeA" src="https://www.youtube.com/embed/kWSMgNe4Uf8?autoplay=1&mute=0"
-            allow="autoplay; encrypted-media" allowfullscreen>
-        </iframe>
-        <iframe id="iframeB" src="" allow="autoplay; encrypted-media" allowfullscreen>
-        </iframe>
-        <div id="overlay"></div>
-    </div>
+<div id="introText" style="
+    position:absolute;
+    top:30%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    color:white;
+    font-size:24px;
+    text-align:center;
+    z-index:21;
+  ">
+    Press Start to watch a video, use the usual socialmedia-swipe gestures to show the next video.
+  </div>
 
-    <script>
-        const iframeA = document.getElementById("iframeA");
-        const iframeB = document.getElementById("iframeB");
-        const overlay = document.getElementById("overlay");
+<button id="startButton">▶ Start</button>
 
-        const videos = [
-            "kWSMgNe4Uf8",
-            "p4WlkEEgN8E",
-            "iqqq57Qwtgw"
-        ];
+<div id="videocontainer">
+  <div id="playerA" class="playerDiv"></div>
+  <div id="playerB" class="playerDiv"></div>
+  <div id="overlay"></div>
+</div>
 
-        let currentIndex = 0;
-        let showingA = true;
+<script src="https://www.youtube.com/iframe_api"></script>
 
-        let startY = 0;
-        let currentY = 0;
-        let isDragging = false;
+<script>
+const videos = ["kWSMgNe4Uf8","p4WlkEEgN8E","iqqq57Qwtgw"];
+const isMuted = 0;
 
-        function getCurrentIframe() {
-            return showingA ? iframeA : iframeB;
-        }
+let currentIndex = 0;
+let showingA = true;
+let playerA, playerB;
 
-        function getNextIframe() {
-            return showingA ? iframeB : iframeA;
-        }
+const startButton = document.getElementById("startButton");
+const introText = document.getElementById("introText");
+const container = document.getElementById("videocontainer");
+const overlay = document.getElementById("overlay");
 
-        function clamp(val, min, max) {
-            return Math.min(Math.max(val, min), max);
-        }
+function getCurrentPlayer() { return showingA ? playerA : playerB; }
+function getNextPlayer() { return showingA ? playerB : playerA; }
+function getCurrentDiv() { return showingA ? document.getElementById("playerA") : document.getElementById("playerB"); }
+function getNextDiv() { return showingA ? document.getElementById("playerB") : document.getElementById("playerA"); }
 
-        function prepareNextVideo(direction) {
-            const nextIndex = direction === "up"
-                ? (currentIndex + 1) % videos.length
-                : (currentIndex - 1 + videos.length) % videos.length;
+// Startbutton klick
+startButton.addEventListener("click", () => {
+  introText.style.display = "none";
+  startButton.style.display = "none";
+  container.style.display = "block";
 
-            const nextIframe = getNextIframe();
-            const nextId = videos[nextIndex];
-            const url = `https://www.youtube.com/embed/${nextId}?autoplay=1&mute=0`;
-            nextIframe.src = url;
-            nextIframe.style.transform = direction === "up"
-                ? "translateY(100%)"
-                : "translateY(-100%)";
-        }
+  // Ersten Player erzeugen
+  playerA = new YT.Player('playerA', {
+    videoId: videos[currentIndex],
+    playerVars: { autoplay:1, controls:1, mute:isMuted, playsinline:1 },
+    events: { 'onReady': e=>e.target.playVideo() }
+  });
 
-        overlay.addEventListener("mousedown", e => {
-            isDragging = true;
-            startY = e.clientY;
-        });
+  // Zweiten Player für Swipe vorbereiten (erst pausiert)
+  const nextIndex = (currentIndex+1)%videos.length;
+  playerB = new YT.Player('playerB', {
+    videoId: videos[nextIndex],
+    playerVars: { autoplay:0, controls:1, mute:isMuted, playsinline:1 }
+  });
+  document.getElementById("playerB").style.transform = "translateY(100%)"; // aus Sichtfeld
+});
 
-        overlay.addEventListener("mousemove", e => {
-            if (!isDragging) return;
-            currentY = e.clientY;
-            const deltaY = currentY - startY;
+// Swipe Mechanik
+let startY=0, currentY=0, isDragging=false;
 
-            const direction = deltaY < 0 ? "up" : "down";
-            prepareNextVideo(direction);
+function prepareNextVideo(direction){
+  const nextDiv = getNextDiv();
+  const nextPlayer = getNextPlayer();
+  const nextIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
 
-            getCurrentIframe().style.transition = "none";
-            getNextIframe().style.transition = "none";
+  nextPlayer.loadVideoById(videos[nextIndex]);
+  nextDiv.style.transition = "none";
+  nextDiv.style.transform = direction==="up" ? "translateY(100%)" : "translateY(-100%)";
+  nextDiv.style.zIndex = 2;
+  getCurrentDiv().style.zIndex = 1;
+}
 
-            getCurrentIframe().style.transform = `translateY(${deltaY}px)`;
-            getNextIframe().style.transform = `translateY(${deltaY + (deltaY < 0 ? window.innerHeight : -window.innerHeight)}px)`;
-        });
+function finishSwipe(){
+  if(!isDragging) return;
+  isDragging=false;
+  const deltaY = currentY - startY;
+  const threshold = 100;
+  const shouldSwitch = Math.abs(deltaY) > threshold;
+  const direction = deltaY<0?"up":"down";
 
-        overlay.addEventListener("mouseup", () => {
-            if (!isDragging) return;
-            isDragging = false;
+  const currentDiv = getCurrentDiv();
+  const nextDiv = getNextDiv();
 
-            const deltaY = currentY - startY;
-            const threshold = 100;
+  currentDiv.style.transition = "transform 0.3s ease";
+  nextDiv.style.transition = "transform 0.3s ease";
 
-            const shouldSwitch = Math.abs(deltaY) > threshold;
-            const direction = deltaY < 0 ? "up" : "down";
+  if(shouldSwitch){
+    currentDiv.style.transform = `translateY(${direction==="up"? -window.innerHeight:window.innerHeight}px)`;
+    nextDiv.style.transform = "translateY(0%)";
 
-            const current = getCurrentIframe();
-            const next = getNextIframe();
+    setTimeout(()=>{
+      showingA = !showingA;
+      currentIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
 
-            current.style.transition = "transform 0.3s ease";
-            next.style.transition = "transform 0.3s ease";
+      currentDiv.style.transition="none";
+      currentDiv.style.transform="translateY(100%)";
+      getNextPlayer().pauseVideo(); // vorheriges stoppen
+    },300);
+  } else {
+    currentDiv.style.transform="translateY(0%)";
+    nextDiv.style.transform=direction==="up"?"translateY(100%)":"translateY(-100%)";
+  }
+}
 
-            if (shouldSwitch) {
-                current.style.transform = `translateY(${deltaY < 0 ? -window.innerHeight : window.innerHeight}px)`;
-                next.style.transform = "translateY(0%)";
+// Maus
+overlay.addEventListener("mousedown", e=>{isDragging=true; startY=e.clientY;});
+overlay.addEventListener("mousemove", e=>{if(!isDragging) return; currentY=e.clientY; prepareNextVideo(currentY<startY?"up":"down");});
+overlay.addEventListener("mouseup", finishSwipe);
 
-                setTimeout(() => {
-                    showingA = !showingA;
-                    currentIndex = direction === "up"
-                        ? (currentIndex + 1) % videos.length
-                        : (currentIndex - 1 + videos.length) % videos.length;
-
-                    current.style.transition = "none";
-                    current.style.transform = "translateY(0%)";
-                    current.src = "";
-                    next.
-                        console.log("HERE");
-                }, 300);
-            } else {
-                // snap back
-                current.style.transform = "translateY(0%)";
-                next.style.transform = direction === "up"
-                    ? "translateY(100%)"
-                    : "translateY(-100%)";
-                console.log("THERE");
-            }
-        });
-
-        // Touch Support
-        overlay.addEventListener("touchstart", e => {
-            isDragging = true;
-            startY = e.touches[0].clientY;
-        });
-
-        overlay.addEventListener("touchmove", e => {
-            if (!isDragging) return;
-            currentY = e.touches[0].clientY;
-            const deltaY = currentY - startY;
-
-            const direction = deltaY < 0 ? "up" : "down";
-            prepareNextVideo(direction);
-
-            getCurrentIframe().style.transition = "none";
-            getNextIframe().style.transition = "none";
-
-            getCurrentIframe().style.transform = `translateY(${deltaY}px)`;
-            getNextIframe().style.transform = `translateY(${deltaY + (deltaY < 0 ? window.innerHeight : -window.innerHeight)}px)`;
-        });
-
-        overlay.addEventListener("touchend", () => {
-            if (!isDragging) return;
-            isDragging = false;
-
-            const deltaY = currentY - startY;
-            const threshold = 100;
-
-            const shouldSwitch = Math.abs(deltaY) > threshold;
-            const direction = deltaY < 0 ? "up" : "down";
-
-            const current = getCurrentIframe();
-            const next = getNextIframe();
-
-            current.style.transition = "transform 0.3s ease";
-            next.style.transition = "transform 0.3s ease";
-
-            if (shouldSwitch) {
-                current.style.transform = `translateY(${deltaY < 0 ? -window.innerHeight : window.innerHeight}px)`;
-                next.style.transform = "translateY(0%)";
-
-                setTimeout(() => {
-                    showingA = !showingA;
-                    currentIndex = direction === "up"
-                        ? (currentIndex + 1) % videos.length
-                        : (currentIndex - 1 + videos.length) % videos.length;
-
-                    current.style.transition = "none";
-                    current.style.transform = "translateY(0%)";
-                    current.src = "";
-                }, 300);
-            } else {
-                current.style.transform = "translateY(0%)";
-                next.style.transform = direction === "up"
-                    ? "translateY(100%)"
-                    : "translateY(-100%)";
-            }
-        });
-    </script>
+// Touch
+overlay.addEventListener("touchstart", e=>{isDragging=true; startY=e.touches[0].clientY;});
+overlay.addEventListener("touchmove", e=>{if(!isDragging) return; currentY=e.touches[0].clientY; prepareNextVideo(currentY<startY?"up":"down");});
+overlay.addEventListener("touchend", finishSwipe);
+</script>
 
 </body>
-
 </html>
