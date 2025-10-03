@@ -68,7 +68,7 @@
     text-align:center;
     z-index:21;
   ">
-    Press Start to watch a video, use the usual socialmedia-swipe gestures to show the next video.
+    Press Start to watch a video, use the common socialmedia-swipe gestures to show the next video.
   </div>
 
 <button id="startButton">▶ Start</button>
@@ -80,7 +80,6 @@
 </div>
 
 <script src="https://www.youtube.com/iframe_api"></script>
-
 <script>
 const videos = ["kWSMgNe4Uf8","p4WlkEEgN8E","iqqq57Qwtgw"];
 const isMuted = 0;
@@ -99,36 +98,10 @@ function getNextPlayer() { return showingA ? playerB : playerA; }
 function getCurrentDiv() { return showingA ? document.getElementById("playerA") : document.getElementById("playerB"); }
 function getNextDiv() { return showingA ? document.getElementById("playerB") : document.getElementById("playerA"); }
 
-// Startbutton klick
-startButton.addEventListener("click", () => {
-  introText.style.display = "none";
-  startButton.style.display = "none";
-  container.style.display = "block";
-
-  // Ersten Player erzeugen
-  playerA = new YT.Player('playerA', {
-    videoId: videos[currentIndex],
-    playerVars: { autoplay:1, controls:1, mute:isMuted, playsinline:1 },
-    events: { 'onReady': e=>e.target.playVideo() }
-  });
-
-  // Zweiten Player für Swipe vorbereiten (erst pausiert)
-  const nextIndex = (currentIndex+1)%videos.length;
-  playerB = new YT.Player('playerB', {
-    videoId: videos[nextIndex],
-    playerVars: { autoplay:0, controls:1, mute:isMuted, playsinline:1 }
-  });
-  document.getElementById("playerB").style.transform = "translateY(100%)"; // aus Sichtfeld
-});
-
-// Swipe Mechanik
-let startY=0, currentY=0, isDragging=false;
-
 function prepareNextVideo(direction){
   const nextDiv = getNextDiv();
   const nextPlayer = getNextPlayer();
   const nextIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
-
   nextPlayer.loadVideoById(videos[nextIndex]);
   nextDiv.style.transition = "none";
   nextDiv.style.transform = direction==="up" ? "translateY(100%)" : "translateY(-100%)";
@@ -141,8 +114,8 @@ function finishSwipe(){
   isDragging=false;
   const deltaY = currentY - startY;
   const threshold = 100;
-  const shouldSwitch = Math.abs(deltaY) > threshold;
   const direction = deltaY<0?"up":"down";
+  const shouldSwitch = Math.abs(deltaY) > threshold;
 
   const currentDiv = getCurrentDiv();
   const nextDiv = getNextDiv();
@@ -152,31 +125,117 @@ function finishSwipe(){
 
   if(shouldSwitch){
     currentDiv.style.transform = `translateY(${direction==="up"? -window.innerHeight:window.innerHeight}px)`;
-    nextDiv.style.transform = "translateY(0%)";
+    nextDiv.style.transform = "translateY(0)";
 
     setTimeout(()=>{
       showingA = !showingA;
       currentIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
-
       currentDiv.style.transition="none";
-      currentDiv.style.transform="translateY(100%)";
-      getNextPlayer().pauseVideo(); // vorheriges stoppen
+      currentDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
+      getNextPlayer().pauseVideo();
     },300);
   } else {
-    currentDiv.style.transform="translateY(0%)";
-    nextDiv.style.transform=direction==="up"?"translateY(100%)":"translateY(-100%)";
+    currentDiv.style.transform="translateY(0)";
+    nextDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
   }
 }
 
-// Maus
-overlay.addEventListener("mousedown", e=>{isDragging=true; startY=e.clientY;});
-overlay.addEventListener("mousemove", e=>{if(!isDragging) return; currentY=e.clientY; prepareNextVideo(currentY<startY?"up":"down");});
-overlay.addEventListener("mouseup", finishSwipe);
+// Startbutton klick
+startButton.addEventListener("click", () => {
+  startButton.style.display = "none";
+  introText.style.display = "none";
+  container.style.display = "block";
 
-// Touch
-overlay.addEventListener("touchstart", e=>{isDragging=true; startY=e.touches[0].clientY;});
-overlay.addEventListener("touchmove", e=>{if(!isDragging) return; currentY=e.touches[0].clientY; prepareNextVideo(currentY<startY?"up":"down");});
-overlay.addEventListener("touchend", finishSwipe);
+  playerA = new YT.Player('playerA', {
+    videoId: videos[currentIndex],
+    playerVars: { autoplay:1, controls:1, mute:isMuted, playsinline:1 },
+    events: { 'onReady': e=>e.target.playVideo() }
+  });
+
+  const nextIndex = (currentIndex+1)%videos.length;
+  playerB = new YT.Player('playerB', {
+    videoId: videos[nextIndex],
+    playerVars: { autoplay:0, controls:1, mute:isMuted, playsinline:1 }
+  });
+  document.getElementById("playerB").style.transform="translateY(100%)";
+});
+
+const CLICK_THRESHOLD = 5;
+const DRAG_THRESHOLD = 10;
+const SWIPE_THRESHOLD = 100;
+let isDragging = false;
+let startY = 0;
+let currentY = 0;
+let hasPreparedNext = false;
+
+overlay.addEventListener("mousedown", e => {
+  isDragging = true;
+  startY = e.clientY;
+  currentY = e.clientY;
+  hasPreparedNext = false;
+});
+
+overlay.addEventListener("mousemove", e => {
+  if(!isDragging) return;
+  currentY = e.clientY;
+  const deltaY = currentY - startY;
+  const direction = deltaY < 0 ? "up" : "down";
+  const currentDiv = getCurrentDiv();
+  const nextDiv = getNextDiv();
+
+  // Video vorbereiten nur, wenn ausreichend Drag
+  if(!hasPreparedNext && Math.abs(deltaY) >= DRAG_THRESHOLD){
+    prepareNextVideo(direction); 
+    hasPreparedNext = true;
+  }
+
+  // Live-Drag: aktuelle Position verschieben
+  currentDiv.style.transition = "none";
+  nextDiv.style.transition = "none";
+  currentDiv.style.transform = `translateY(${deltaY}px)`;
+  nextDiv.style.transform = `translateY(${deltaY + (deltaY<0?window.innerHeight:-window.innerHeight)}px)`;
+});
+
+overlay.addEventListener("mouseup", () => {
+    if(!isDragging) return;
+    isDragging = false;
+    const deltaY = currentY - startY;
+    //console.log("currentY ", currentY);
+    //console.log("startY ", startY);
+    //console.log("deltaY ", deltaY);
+  const direction = deltaY < 0 ? "up" : "down";
+  const currentDiv = getCurrentDiv();
+  const nextDiv = getNextDiv();
+
+  currentDiv.style.transition = "transform 0.3s ease";
+  nextDiv.style.transition = "transform 0.3s ease";
+
+  // KLICK: kein Swap
+  if(Math.abs(deltaY) < CLICK_THRESHOLD){
+    currentDiv.style.transform = "translateY(0)";
+    nextDiv.style.transform = direction === "up" ? "translateY(100%)" : "translateY(-100%)";
+    return;
+  }
+
+  // SWIPE: Swap nur bei ausreichender Bewegung
+  if(Math.abs(deltaY) >= SWIPE_THRESHOLD){
+    currentDiv.style.transform = `translateY(${direction==="up"?-window.innerHeight:window.innerHeight}px)`;
+    nextDiv.style.transform = "translateY(0)";
+
+    setTimeout(()=>{
+      // **Hier erst Swap durchführen**
+      showingA = !showingA;
+      currentIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
+      currentDiv.style.transition = "none";
+      currentDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
+      getNextPlayer().pauseVideo();
+    }, 300);
+  } else {
+    // Snapback → kein Swap
+    currentDiv.style.transform = "translateY(0)";
+    nextDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
+  }
+});
 </script>
 
 </body>
