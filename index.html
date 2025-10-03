@@ -126,13 +126,18 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-const videos = ["kWSMgNe4Uf8","p4WlkEEgN8E","iqqq57Qwtgw"];
-const isMuted = true;
-const durationInMilliseconds = 5000;
+// start configuration
+const mandatoryVideos = ["zMcPRm9RRro","ewZ0foQpl3w","xYIXo8juUvg"];
+const optionalVideos = ["kWSMgNe4Uf8","p4WlkEEgN8E","iqqq57Qwtgw"];
+const optionalVideosNumber = 2;
+const isMuted = false;
+const durationInMilliseconds = 60000;
+// end configuration
 
 let currentIndex = 0;
 let showingA = true;
 let playerA, playerB;
+let videos;
 
 const startButton = document.getElementById("startButton");
 const introText = document.getElementById("introText");
@@ -160,7 +165,7 @@ function finishSwipe(){
   isDragging=false;
   const deltaY = currentY - startY;
   const threshold = 100;
-  const direction = deltaY<0?"up":"down";
+  const direction = deltaY < 0 ? "up" : "down";
   const shouldSwitch = Math.abs(deltaY) > threshold;
 
   const currentDiv = getCurrentDiv();
@@ -186,23 +191,45 @@ function finishSwipe(){
   }
 }
 
+function setupVideos() {
+  let shuffeledOptionalVideos = shuffle(optionalVideos);
+  let combined = mandatoryVideos.concat(shuffeledOptionalVideos.slice(0, optionalVideosNumber));
+  combined = shuffle(combined);
+
+  return combined;
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    // choose random index
+    const j = Math.floor(Math.random() * (i + 1));
+
+    // swap elements
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+
+  return array;
+}
+
 startButton.addEventListener("click", () => {
+  videos = setupVideos();
+
   startButton.style.display = "none";
   introText.style.display = "none";
   videoContainer.style.display = "block";
 
   playerA = new YT.Player('playerA', {
     videoId: videos[currentIndex],
-    playerVars: { autoplay:1, controls:1, mute:isMuted, playsinline:1 },
+    playerVars: { autoplay:1, controls:1, mute:isMuted, playsinline:1 }, //, loop:1, playlist:videos[currentIndex] },
     events: { 'onReady': e=>e.target.playVideo() }
   });
 
-  const nextIndex = (currentIndex+1)%videos.length;
+  const nextIndex = (currentIndex+1) % videos.length;
   playerB = new YT.Player('playerB', {
     videoId: videos[nextIndex],
-    playerVars: { autoplay:0, controls:1, mute:isMuted, playsinline:1 }
+    playerVars: { autoplay:0, controls:1, mute:isMuted, playsinline:1 } //, loop:1, playlist:videos[nextIndex] }
   });
-  document.getElementById("playerB").style.transform="translateY(100%)";
+  document.getElementById("playerB").style.transform = "translateY(100%)";
 
   setTimeout(() => {
       videoContainer.style.display = "none";
@@ -249,9 +276,11 @@ overlay.addEventListener("mousemove", e => {
 });
 
 overlay.addEventListener("mouseup", () => {
-    if(!isDragging) return;
-    isDragging = false;
-    const deltaY = currentY - startY;
+  if(!isDragging){
+    return;
+  }
+  isDragging = false;
+  const deltaY = currentY - startY;
   const direction = deltaY < 0 ? "up" : "down";
   const currentDiv = getCurrentDiv();
   const nextDiv = getNextDiv();
@@ -268,21 +297,21 @@ overlay.addEventListener("mouseup", () => {
 
   // only swipe if the dragging distance has exceeded the defined value
   if(Math.abs(deltaY) >= SWIPE_THRESHOLD){
-    currentDiv.style.transform = `translateY(${direction==="up"?-window.innerHeight:window.innerHeight}px)`;
+    currentDiv.style.transform = `translateY(${direction === "up" ? -window.innerHeight : window.innerHeight}px)`;
     nextDiv.style.transform = "translateY(0)";
 
     setTimeout(()=>{
       // finally execute the swap
       showingA = !showingA;
-      currentIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
+      currentIndex = direction === "up" ? (currentIndex + 1) % videos.length : (currentIndex - 1 + videos.length)%videos.length;
       currentDiv.style.transition = "none";
-      currentDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
+      currentDiv.style.transform = direction === "up" ? "translateY(100%)" : "translateY(-100%)";
       getNextPlayer().pauseVideo();
     }, 300);
-  } else {
+  }else{
     // desired drag distance not reached snapping back →> no swap
     currentDiv.style.transform = "translateY(0)";
-    nextDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
+    nextDiv.style.transform = direction=== "up" ? "translateY(100%)" : "translateY(-100%)";
   }
 });
 </script>
