@@ -9,7 +9,7 @@
         padding:0;
         height:100%;
         overflow:hidden;
-        background:black;
+        background:#000000;
     }
 
     #videocontainer {
@@ -50,10 +50,24 @@
         border-radius:12px;
         font-size:20px;
         background:#ff0000;
-        color:white;
+        color:#ffffff;
         cursor:pointer;
         z-index:20;
-}
+    }
+
+    #backButton {
+        position:absolute;
+        top:50%; left:50%;
+        transform:translate(-50%,-50%);
+        padding:15px 25px;
+        border:none;
+        border-radius:12px;
+        font-size:20px;
+        background:#ffffff;
+        color:#000000;
+        cursor:pointer;
+        z-index:20;
+    }
 </style>
 </head>
 <body>
@@ -63,13 +77,13 @@
     top:30%;
     left:50%;
     transform:translate(-50%,-50%);
-    color:white;
+    color:#ffffff;
     font-size:24px;
     text-align:center;
     z-index:21;
   ">
     Press Start to watch a video, use the common socialmedia-swipe gestures to show the next video.
-  </div>
+</div>
 
 <button id="startButton">▶ Start</button>
 
@@ -79,10 +93,42 @@
   <div id="overlay"></div>
 </div>
 
+<div id="endContainer" style="display:none;">
+  <div id="outroText" style="
+    position:absolute;
+    top:40%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    color:#ffffff;
+    font-size:24px;
+    text-align:center;
+    z-index:21;
+  ">
+    Thanks for watching. Press the button to start the survey.
+  </div>
+  <button id="backButton" style="
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    padding:15px 25px;
+    border:none;
+    border-radius:12px;
+    font-size:20px;
+    background:#ffffff;
+    color:#000000;
+    cursor:pointer;
+    z-index:20;
+  ">
+    Start survey
+  </button>
+</div>
+
 <script src="https://www.youtube.com/iframe_api"></script>
+
 <script>
 const videos = ["kWSMgNe4Uf8","p4WlkEEgN8E","iqqq57Qwtgw"];
-const isMuted = 0;
+const isMuted = true;
+const durationInMilliseconds = 5000;
 
 let currentIndex = 0;
 let showingA = true;
@@ -90,7 +136,7 @@ let playerA, playerB;
 
 const startButton = document.getElementById("startButton");
 const introText = document.getElementById("introText");
-const container = document.getElementById("videocontainer");
+const videoContainer = document.getElementById("videocontainer");
 const overlay = document.getElementById("overlay");
 
 function getCurrentPlayer() { return showingA ? playerA : playerB; }
@@ -140,11 +186,10 @@ function finishSwipe(){
   }
 }
 
-// Startbutton klick
 startButton.addEventListener("click", () => {
   startButton.style.display = "none";
   introText.style.display = "none";
-  container.style.display = "block";
+  videoContainer.style.display = "block";
 
   playerA = new YT.Player('playerA', {
     videoId: videos[currentIndex],
@@ -158,7 +203,14 @@ startButton.addEventListener("click", () => {
     playerVars: { autoplay:0, controls:1, mute:isMuted, playsinline:1 }
   });
   document.getElementById("playerB").style.transform="translateY(100%)";
+
+  setTimeout(() => {
+      videoContainer.style.display = "none";
+      endContainer.style.display = "block";
+  }, durationInMilliseconds);
 });
+
+//TODO handle back button
 
 const CLICK_THRESHOLD = 5;
 const DRAG_THRESHOLD = 10;
@@ -183,13 +235,13 @@ overlay.addEventListener("mousemove", e => {
   const currentDiv = getCurrentDiv();
   const nextDiv = getNextDiv();
 
-  // Video vorbereiten nur, wenn ausreichend Drag
+  // only prepare the next video if dragging was detected
   if(!hasPreparedNext && Math.abs(deltaY) >= DRAG_THRESHOLD){
     prepareNextVideo(direction); 
     hasPreparedNext = true;
   }
 
-  // Live-Drag: aktuelle Position verschieben
+  // drag 'animation' -> update y position
   currentDiv.style.transition = "none";
   nextDiv.style.transition = "none";
   currentDiv.style.transform = `translateY(${deltaY}px)`;
@@ -200,9 +252,6 @@ overlay.addEventListener("mouseup", () => {
     if(!isDragging) return;
     isDragging = false;
     const deltaY = currentY - startY;
-    //console.log("currentY ", currentY);
-    //console.log("startY ", startY);
-    //console.log("deltaY ", deltaY);
   const direction = deltaY < 0 ? "up" : "down";
   const currentDiv = getCurrentDiv();
   const nextDiv = getNextDiv();
@@ -210,20 +259,20 @@ overlay.addEventListener("mouseup", () => {
   currentDiv.style.transition = "transform 0.3s ease";
   nextDiv.style.transition = "transform 0.3s ease";
 
-  // KLICK: kein Swap
+  // click detected, not drag -> no swap
   if(Math.abs(deltaY) < CLICK_THRESHOLD){
     currentDiv.style.transform = "translateY(0)";
     nextDiv.style.transform = direction === "up" ? "translateY(100%)" : "translateY(-100%)";
     return;
   }
 
-  // SWIPE: Swap nur bei ausreichender Bewegung
+  // only swipe if the dragging distance has exceeded the defined value
   if(Math.abs(deltaY) >= SWIPE_THRESHOLD){
     currentDiv.style.transform = `translateY(${direction==="up"?-window.innerHeight:window.innerHeight}px)`;
     nextDiv.style.transform = "translateY(0)";
 
     setTimeout(()=>{
-      // **Hier erst Swap durchführen**
+      // finally execute the swap
       showingA = !showingA;
       currentIndex = direction==="up" ? (currentIndex+1)%videos.length : (currentIndex-1+videos.length)%videos.length;
       currentDiv.style.transition = "none";
@@ -231,7 +280,7 @@ overlay.addEventListener("mouseup", () => {
       getNextPlayer().pauseVideo();
     }, 300);
   } else {
-    // Snapback → kein Swap
+    // desired drag distance not reached snapping back →> no swap
     currentDiv.style.transform = "translateY(0)";
     nextDiv.style.transform = direction==="up"?"translateY(100%)":"translateY(-100%)";
   }
