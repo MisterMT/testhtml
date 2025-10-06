@@ -268,8 +268,21 @@ function interactionStart(initialY) {
 }
 
 overlay.addEventListener("mousemove", e => {
-  if(!isDragging) return;
-  currentY = e.clientY;
+  interactionMove(e.clientY);
+});
+
+overlay.addEventListener("touchmove", e => {
+  interactionMove(e.touches[0].clientY);
+
+  e.preventDefault();
+}, { passive: false });
+
+function interactionMove(current) {
+  if(!isDragging){
+    return;
+  }
+
+  currentY = current;
   const deltaY = currentY - startY;
   const direction = deltaY < 0 ? "up" : "down";
   const currentDiv = getCurrentDiv();
@@ -286,7 +299,7 @@ overlay.addEventListener("mousemove", e => {
   nextDiv.style.transition = "none";
   currentDiv.style.transform = `translateY(${deltaY}px)`;
   nextDiv.style.transform = `translateY(${deltaY + (deltaY<0?window.innerHeight:-window.innerHeight)}px)`;
-});
+}
 
 overlay.addEventListener("mouseup", () => {
   if(!isDragging){
@@ -327,29 +340,6 @@ overlay.addEventListener("mouseup", () => {
     nextDiv.style.transform = direction=== "up" ? "translateY(100%)" : "translateY(-100%)";
   }
 });
-
-
-
-overlay.addEventListener("touchmove", e => {
-  if(!isDragging) return;
-  currentY = e.touches[0].clientY;
-  const deltaY = currentY - startY;
-  const direction = deltaY < 0 ? "up" : "down";
-  const currentDiv = getCurrentDiv();
-  const nextDiv = getNextDiv();
-
-  if(!hasPreparedNext && Math.abs(deltaY) >= DRAG_THRESHOLD){
-    prepareNextVideo(direction);
-    hasPreparedNext = true;
-  }
-
-  currentDiv.style.transition = "none";
-  nextDiv.style.transition = "none";
-  currentDiv.style.transform = `translateY(${deltaY}px)`;
-  nextDiv.style.transform = `translateY(${deltaY + (deltaY<0?window.innerHeight:-window.innerHeight)}px)`;
-
-  e.preventDefault();
-}, { passive: false });
 
 overlay.addEventListener("touchend", e => {
   if(!isDragging) return;
