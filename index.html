@@ -248,11 +248,24 @@ let currentY = 0;
 let hasPreparedNext = false;
 
 overlay.addEventListener("mousedown", e => {
-  isDragging = true;
-  startY = e.clientY;
-  currentY = e.clientY;
-  hasPreparedNext = false;
+  interactionStart(e.clientY);
 });
+
+overlay.addEventListener("touchstart", e => {
+  //Just allow one finger interaction
+  if(e.touches.length !== 1){
+    return;
+  }
+
+  interactionStart(e.touches[0].clientY);
+});
+
+function interactionStart(initialY) {
+  isDragging = true;
+  startY = initialY;
+  currentY = initialY;
+  hasPreparedNext = false;
+}
 
 overlay.addEventListener("mousemove", e => {
   if(!isDragging) return;
@@ -315,13 +328,7 @@ overlay.addEventListener("mouseup", () => {
   }
 });
 
-overlay.addEventListener("touchstart", e => {
-  if(e.touches.length !== 1) return; // nur 1 Finger erlaubt
-  isDragging = true;
-  startY = e.touches[0].clientY;
-  currentY = startY;
-  hasPreparedNext = false;
-});
+
 
 overlay.addEventListener("touchmove", e => {
   if(!isDragging) return;
