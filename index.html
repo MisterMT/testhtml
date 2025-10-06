@@ -130,7 +130,7 @@
 const mandatoryVideos = ["zMcPRm9RRro","ewZ0foQpl3w","xYIXo8juUvg"];
 const optionalVideos = ["kWSMgNe4Uf8","p4WlkEEgN8E","iqqq57Qwtgw"];
 const optionalVideosNumber = 2;
-const isMuted = false;
+const isMuted = true;
 const durationInMilliseconds = 60000;
 // end configuration
 
@@ -302,6 +302,14 @@ function interactionMove(current) {
 }
 
 overlay.addEventListener("mouseup", () => {
+  interactionEnd();
+});
+
+overlay.addEventListener("touchend", e => {
+  interactionEnd();
+});
+
+function interactionEnd() {
   if(!isDragging){
     return;
   }
@@ -339,43 +347,8 @@ overlay.addEventListener("mouseup", () => {
     currentDiv.style.transform = "translateY(0)";
     nextDiv.style.transform = direction=== "up" ? "translateY(100%)" : "translateY(-100%)";
   }
-});
+}
 
-overlay.addEventListener("touchend", e => {
-  if(!isDragging) return;
-  isDragging = false;
-  const deltaY = currentY - startY;
-  const direction = deltaY < 0 ? "up" : "down";
-  const currentDiv = getCurrentDiv();
-  const nextDiv = getNextDiv();
-
-  currentDiv.style.transition = "transform 0.3s ease";
-  nextDiv.style.transition = "transform 0.3s ease";
-
-  if(Math.abs(deltaY) < CLICK_THRESHOLD){
-    currentDiv.style.transform = "translateY(0)";
-    nextDiv.style.transform = direction === "up" ? "translateY(100%)" : "translateY(-100%)";
-    return;
-  }
-
-  if(Math.abs(deltaY) >= SWIPE_THRESHOLD){
-    currentDiv.style.transform = `translateY(${direction === "up" ? -window.innerHeight : window.innerHeight}px)`;
-    nextDiv.style.transform = "translateY(0)";
-
-    setTimeout(()=>{
-      showingA = !showingA;
-      currentIndex = direction === "up" 
-        ? (currentIndex + 1) % videos.length 
-        : (currentIndex - 1 + videos.length) % videos.length;
-      currentDiv.style.transition = "none";
-      currentDiv.style.transform = direction === "up" ? "translateY(100%)" : "translateY(-100%)";
-      getNextPlayer().pauseVideo();
-    }, 300);
-  } else {
-    currentDiv.style.transform = "translateY(0)";
-    nextDiv.style.transform = direction === "up" ? "translateY(100%)" : "translateY(-100%)";
-  }
-});
 </script>
 
 </body>
